@@ -1,140 +1,258 @@
-import React, { useState, useEffect } from 'react';
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
-import { Checkbox } from "@/components/ui/checkbox";
+import React, { useState } from 'react';
+import {
+  Card,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+  CardContent,
+  CardFooter,
+} from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import { Badge } from '@/components/ui/badge';
 
-function generateRandomExpense() {
-  const categories = ['Food', 'Transport', 'Entertainment', 'Utilities', 'Misc'];
-  return {
-    id: Date.now() + Math.random(),
-    title: `Expense ${Math.floor(Math.random() * 1000)}`,
-    amount: Math.floor(Math.random() * 1000) + 1,
-    category: categories[Math.floor(Math.random() * categories.length)],
-    date: new Date(Date.now() - Math.random() * (1e+12)).toISOString().split('T')[0],
-  };
-}
-
-function ExpenseList({ expenses, onRemove, onMoveToWishlist }) {
-  const [visibleCount, setVisibleCount] = useState(5);
-  const showMore = expenses.length > 5;
-  
-  return (
-    <div className="space-y-4">
-      {expenses.slice(0, visibleCount).map(expense => (
-        <Card key={expense.id}>
-          <CardHeader>
-            <CardTitle>{expense.title}</CardTitle>
-            <CardDescription>{expense.date}</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <p>Amount: ${expense.amount}</p>
-            <p>Category: {expense.category}</p>
-          </CardContent>
-          <CardFooter className="flex justify-between">
-            <Button onClick={() => onRemove(expense.id)}>Remove</Button>
-            <Button onClick={() => onMoveToWishlist(expense)} variant="outline">Add to Wishlist</Button>
-          </CardFooter>
-        </Card>
-      ))}
-      {showMore &&
-        <Button onClick={() => setVisibleCount(prev => prev === 5 ? expenses.length : 5)}>
-          {visibleCount === 5 ? 'See More' : 'See Less'}
-        </Button>
-      }
-    </div>
-  );
-}
-
-function Wishlist({ items, onRemove }) {
-  return (
-    <div className="space-y-4">
-      {items.map(item => (
-        <Card key={item.id}>
-          <CardHeader>
-            <CardTitle>{item.title}</CardTitle>
-          </CardHeader>
-          <CardFooter className="flex justify-between">
-            <p>${item.amount}</p>
-            <Button onClick={() => onRemove(item.id)}>Remove</Button>
-          </CardFooter>
-        </Card>
-      ))}
-    </div>
-  );
-}
-
-export default function App() {
+const ExpenseManager = () => {
   const [expenses, setExpenses] = useState([]);
   const [wishlist, setWishlist] = useState([]);
-  const [tab, setTab] = useState('expenses');
+  const [showAllExpenses, setShowAllExpenses] = useState(false);
+  const [notification, setNotification] = useState(null);
   
-  useEffect(() => {
-    if (expenses.length === 0) {
-      const initialExpenses = Array.from({length: 10}, generateRandomExpense);
-      setExpenses(initialExpenses);
-    }
-  }, []);
+  const categories = ['Food', 'Transport', 'Entertainment', 'Other'];
+  const titles = ['Lunch', 'Taxi', 'Movie Ticket', 'Groceries', 'Coffee', 'Book'];
+  
+  const generateRandomExpense = () => {
+    const randomTitle = titles[Math.floor(Math.random() * titles.length)];
+    const randomAmount = (Math.random() * 100 + 1).toFixed(2);
+    const randomDate = new Date(
+      Date.now() - Math.floor(Math.random() * 30) * 24 * 60 * 60 * 1000
+    ).toISOString().split('T')[0];
+    const randomCategory = categories[Math.floor(Math.random() * categories.length)];
+    
+    return {
+      title: randomTitle,
+      amount: parseFloat(randomAmount),
+      date: randomDate,
+      category: randomCategory,
+    };
+  };
   
   const addRandomExpense = () => {
-    setExpenses(prev => [...prev, generateRandomExpense()]);
+    const newExpense = generateRandomExpense();
+    setExpenses([...expenses, newExpense]);
+    showNotification('Expense added successfully!', 'success');
   };
   
-  const clearAll = () => {
+  const clearExpenses = () => {
     setExpenses([]);
-    setWishlist([]);
+    setShowAllExpenses(false);
+    showNotification('All expenses cleared!', 'info');
   };
   
-  const moveToWishlist = (expense) => {
-    setWishlist(prev => [...prev, expense]);
-    setExpenses(prev => prev.filter(e => e.id !== expense.id));
+  const getTotalExpense = () => {
+    return expenses
+      .reduce((total, expense) => total + expense.amount, 0)
+      .toFixed(2);
   };
   
-  const removeFromList = (id, fromWishlist = false) => {
-    if (fromWishlist) {
-      setWishlist(prev => prev.filter(item => item.id !== id));
-    } else {
-      setExpenses(prev => prev.filter(expense => expense.id !== id));
-    }
+  const getAverageExpense = () => {
+    if (expenses.length === 0) return '0.00';
+    const average =
+      expenses.reduce((total, expense) => total + expense.amount, 0) /
+      expenses.length;
+    return average.toFixed(2);
   };
   
-  const totalExpense = expenses.reduce((sum, e) => sum + e.amount, 0);
-  const averageExpense = expenses.length ? (totalExpense / expenses.length).toFixed(2) : 0;
+  const addToWishlist = (item) => {
+    setWishlist([...wishlist, item]);
+    showNotification(`${item.title} added to wishlist!`, 'success');
+  };
+  
+  const removeFromWishlist = (index) => {
+    const removedItem = wishlist[index];
+    const updatedWishlist = [...wishlist];
+    updatedWishlist.splice(index, 1);
+    setWishlist(updatedWishlist);
+    showNotification(`${removedItem.title} removed from wishlist!`, 'info');
+  };
+  
+  const removeExpense = (index) => {
+    const removedExpense = expenses[index];
+    const updatedExpenses = [...expenses];
+    updatedExpenses.splice(index, 1);
+    setExpenses(updatedExpenses);
+    showNotification(`${removedExpense.title} removed from expenses!`, 'info');
+  };
+  
+  const displayedExpenses = showAllExpenses ? expenses : expenses.slice(0, 5);
+  
+  const showNotification = (message, type) => {
+    setNotification({ message, type });
+    setTimeout(() => {
+      setNotification(null);
+    }, 3000);
+  };
   
   return (
-    <div className="container mx-auto p-4 sm:p-8">
-      <Tabs defaultValue="expenses" className="w-full">
-        <TabsList>
+    <div className="flex flex-col justify-center items-center min-h-screen p-4 bg-gray-50">
+      {/* Notification */}
+      {notification && (
+        <div className={`fixed top-4 right-4 p-3 rounded-lg shadow-lg text-white ${notification.type === 'success' ? 'bg-green-500' : 'bg-blue-500'}`}>
+          {notification.message}
+        </div>
+      )}
+      
+      <Card className="w-full max-w-md mb-6 shadow-lg">
+        <CardHeader>
+          <CardTitle className="text-center text-indigo-600 text-2xl">
+            Expense Manager
+          </CardTitle>
+          <CardDescription className="text-center">
+            Automatically generate expenses.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex space-x-2">
+            <Button className="w-full" onClick={addRandomExpense}>
+              Add Expense
+            </Button>
+            <Button variant="destructive" onClick={clearExpenses}>
+              Clear All
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+      
+      {/* Tabs for navigation */}
+      <Tabs defaultValue="expenses" className="w-full max-w-md">
+        <TabsList className="grid grid-cols-2 mb-4">
           <TabsTrigger value="expenses">Expenses</TabsTrigger>
           <TabsTrigger value="wishlist">
             Must-buy Items
-            {wishlist.length > 0 && <Badge className="ml-2">{wishlist.length}</Badge>}
+            {wishlist.length > 0 && (
+              <Badge variant="dot" className="ml-2">
+                {wishlist.length}
+              </Badge>
+            )}
           </TabsTrigger>
         </TabsList>
+        
+        {/* Expenses Tab */}
         <TabsContent value="expenses">
-          <Card>
+          <Card className="w-full mb-6 shadow-md">
             <CardHeader>
-              <CardTitle>Expense Tracker</CardTitle>
+              <CardTitle>Expense List</CardTitle>
+              <CardDescription>
+                Total: ${getTotalExpense()} | Average: ${getAverageExpense()}
+              </CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="mb-4">
-                <Button onClick={addRandomExpense}>Add Random Expense</Button>
-                <Button onClick={clearAll} variant="destructive" className="ml-2">Clear All</Button>
-              </div>
-              <ExpenseList expenses={expenses} onRemove={removeFromList} onMoveToWishlist={moveToWishlist} />
-              <div className="mt-4">
-                <p>Total Expenses: ${totalExpense}</p>
-                <p>Average Expense: ${averageExpense}</p>
-              </div>
+              {expenses.length > 0 ? (
+                <ul className="space-y-3">
+                  {displayedExpenses.map((expense, index) => (
+                    <li
+                      key={index}
+                      className="flex justify-between items-center p-2 border rounded bg-white"
+                    >
+                      <div>
+                        <h3 className="font-bold text-gray-800">
+                          {expense.title}
+                        </h3>
+                        <p className="text-sm text-gray-500">{expense.date}</p>
+                        <p className="text-sm text-gray-500">
+                          {expense.category}
+                        </p>
+                      </div>
+                      <div className="flex flex-col items-end space-y-2">
+                        <p className="font-semibold text-indigo-600">
+                          ${expense.amount.toFixed(2)}
+                        </p>
+                        <div className="flex space-x-2">
+                          <Button
+                            size="sm"
+                            onClick={() => addToWishlist(expense)}
+                            className="bg-green-500 hover:bg-green-600 text-white"
+                          >
+                            Add to Wishlist
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="destructive"
+                            onClick={() => removeExpense(index)}
+                          >
+                            Remove
+                          </Button>
+                        </div>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="text-center text-gray-500">No expenses yet.</p>
+              )}
+              {/* Show "See More" button if expenses exceed 5 */}
+              {expenses.length > 5 && (
+                <div className="mt-4 text-center">
+                  <Button
+                    variant="outline"
+                    onClick={() => setShowAllExpenses(!showAllExpenses)}
+                  >
+                    {showAllExpenses ? 'Show Less' : 'See More'}
+                  </Button>
+                </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
+        
+        {/* Wishlist Tab */}
         <TabsContent value="wishlist">
-          <Wishlist items={wishlist} onRemove={item => removeFromList(item.id, true)} />
+          <Card className="w-full mb-6 shadow-md">
+            <CardHeader>
+              <CardTitle>Must-buy Items</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {wishlist.length > 0 ? (
+                <ul className="space-y-3">
+                  {wishlist.map((item, index) => (
+                    <li
+                      key={index}
+                      className="flex justify-between items-center p-2 border rounded bg-white"
+                    >
+                      <div>
+                        <h3 className="font-bold text-gray-800">
+                          {item.title}
+                        </h3>
+                        <p className="text-sm text-gray-500">{item.date}</p>
+                        <p className="text-sm text-gray-500">
+                          {item.category}
+                        </p>
+                      </div>
+                      <div className="flex flex-col items-end space-y-2">
+                        <p className="font-semibold text-indigo-600">
+                          ${item.amount.toFixed(2)}
+                        </p>
+                        <Button
+                          size="sm"
+                          variant="destructive"
+                          onClick={() => removeFromWishlist(index)}
+                        >
+                          Remove
+                        </Button>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="text-center text-gray-500">
+                  No items in your wishlist.
+                </p>
+              )}
+            </CardContent>
+          </Card>
         </TabsContent>
       </Tabs>
     </div>
   );
-}
+};
+
+export default ExpenseManager;
