@@ -1,90 +1,136 @@
 // App.jsx
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
-  Card, CardContent, CardHeader, CardTitle,
-  Button, Input, Badge, Alert
+  Button,
+  Input,
+  Card,
+  CardHeader,
+  CardTitle,
+  CardContent,
+  CardFooter,
+  Badge,
+  Dialog
 } from "@/components/ui";
-import { PlusIcon, TrashIcon, StarIcon } from "@/components/icons";
+import { Plus, X, Trash, ListChecks, ShoppingCart } from "lucide-react";
 
-const ExpenseManager = () => {
+const categories = ['Food', 'Transport', 'Entertainment', 'Shopping', 'Bills', 'Other'];
+
+function ExpenseItem({ expense, onEdit, onDelete, onMoveToWishlist }) {
+  return (
+    <Card className="mb-2">
+      <CardContent>
+        <div className="flex justify-between">
+          <span>{expense.name}</span>
+          <span>${expense.amount}</span>
+        </div>
+        <div className="flex justify-between mt-2">
+          <span>{expense.category}</span>
+          <div>
+            <Button variant="outline" size="icon" onClick={() => onEdit(expense)}>
+              <Plus className="rotate-45" />
+            </Button>
+            <Button variant="outline" size="icon" onClick={() => onDelete(expense.id)}>
+              <Trash />
+            </Button>
+            <Button variant="outline" size="icon" onClick={() => onMoveToWishlist(expense)}>
+              <ShoppingCart />
+            </Button>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function App() {
   const [expenses, setExpenses] = useState([]);
   const [wishlist, setWishlist] = useState([]);
-  const [newExpense, setNewExpense] = useState({ name: '', amount: '', category: '' });
-  const [filter, setFilter] = useState('');
-  const [search, setSearch] = useState('');
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [currentExpense, setCurrentExpense] = useState({ name: '', amount: '', category: 'Food' });
+  const [searchTerm, setSearchTerm] = useState('');
   
-  const addExpense = () => {
-    if (newExpense.name && newExpense.amount) {
-      setExpenses([...expenses, { ...newExpense, id: Date.now() }]);
-      setNewExpense({ name: '', amount: '', category: '' });
-    }
+  const addExpense = (expense) => {
+    setExpenses([...expenses, { ...expense, id: Date.now() }]);
   };
   
-  const removeExpense = (id) => {
-    setExpenses(expenses.filter(exp => exp.id !== id));
+  const updateExpense = (updatedExpense) => {
+    setExpenses(expenses.map(e => e.id === updatedExpense.id ? updatedExpense : e));
   };
+  
+  const deleteExpense = (id) => setExpenses(expenses.filter(e => e.id !== id));
   
   const moveToWishlist = (expense) => {
     setWishlist([...wishlist, expense]);
-    removeExpense(expense.id);
+    deleteExpense(expense.id);
   };
   
-  const filteredExpenses = expenses
-    .filter(exp => exp.category.includes(filter) && exp.name.toLowerCase().includes(search.toLowerCase()));
+  const filteredExpenses = expenses.filter(expense =>
+    expense.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    expense.category.toLowerCase().includes(searchTerm.toLowerCase())
+  );
   
-  const total = filteredExpenses.reduce((sum, exp) => sum + parseFloat(exp.amount), 0);
-  const average = total / (filteredExpenses.length || 1);
+  const totalExpenses = expenses.reduce((sum, expense) => sum + parseFloat(expense.amount), 0);
+  const averageExpense = expenses.length ? (totalExpenses / expenses.length).toFixed(2) : 0;
   
   return (
-    <div className="container mx-auto p-4 space-y-4">
-      <Card>
-        <CardHeader>
-          <CardTitle>Expense Manager</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex flex-col sm:flex-row gap-2">
-            <Input value={newExpense.name} onChange={(e) => setNewExpense({...newExpense, name: e.target.value})} placeholder="Expense Name" />
-            <Input type="number" value={newExpense.amount} onChange={(e) => setNewExpense({...newExpense, amount: e.target.value})} placeholder="Amount" />
-            <Input value={newExpense.category} onChange={(e) => setNewExpense({...newExpense, category: e.target.value})} placeholder="Category" />
-            <Button onClick={addExpense}><PlusIcon className="mr-2 h-4 w-4" /> Add Expense</Button>
-          </div>
-          <div className="mt-4">
-            <Input placeholder="Search expenses" value={search} onChange={(e) => setSearch(e.target.value)} />
-            <Input placeholder="Filter by category" value={filter} onChange={(e) => setFilter(e.target.value)} className="mt-2" />
-          </div>
-          <ul className="mt-4 space-y-2 max-h-64 overflow-y-auto">
-            {filteredExpenses.slice(0, 5).map((exp, idx) => (
-              <li key={idx} className="flex justify-between items-center">
-                <span>{exp.name} - ${exp.amount} ({exp.category})</span>
-                <div>
-                  <Button variant="outline" size="icon" onClick={() => moveToWishlist(exp)}><StarIcon /></Button>
-                  <Button variant="destructive" size="icon" onClick={() => removeExpense(exp.id)}><TrashIcon /></Button>
-                </div>
-              </li>
-            ))}
-            {filteredExpenses.length > 5 &&
-              <Button className="w-full">See More</Button>}
-          </ul>
-          <div className="mt-4">
-            <p>Total: ${total.toFixed(2)}</p>
-            <p>Average: ${average.toFixed(2)}</p>
-            <Button onClick={() => setExpenses([])} className="mt-2 bg-red-500 hover:bg-red-600">Clear All</Button>
-          </div>
-        </CardContent>
-      </Card>
+    <div className="container mx-auto p-4">
+      <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
+        <Card>
+          <CardHeader>
+            <CardTitle>Add/Edit Expense</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <Input value={currentExpense.name} onChange={(e) => setCurrentExpense({...currentExpense, name: e.target.value})} placeholder="Item name" />
+            <Input type="number" value={currentExpense.amount} onChange={(e) => setCurrentExpense({...currentExpense, amount: e.target.value})} placeholder="Amount" className="my-2" />
+            <select value={currentExpense.category} onChange={(e) => setCurrentExpense({...currentExpense, category: e.target.value})} className="p-2 border rounded w-full">
+              {categories.map(cat => <option key={cat} value={cat}>{cat}</option>)}
+            </select>
+          </CardContent>
+          <CardFooter className="flex justify-end">
+            <Button onClick={() => {
+              currentExpense.id ? updateExpense(currentExpense) : addExpense(currentExpense);
+              setCurrentExpense({ name: '', amount: '', category: 'Food' });
+            }}>Save</Button>
+            <Button variant="destructive" onClick={() => setIsModalOpen(false)} className="ml-2">Close</Button>
+          </CardFooter>
+        </Card>
+      </Dialog>
       
-      <Card>
-        <CardHeader>
-          <CardTitle>Must-Buy Wishlist <Badge>{wishlist.length}</Badge></CardTitle>
-        </CardHeader>
-        <CardContent>
-          <ul>
-            {wishlist.map((item, idx) => <li key={idx}>{item.name} - ${item.amount}</li>)}
-          </ul>
-        </CardContent>
-      </Card>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <Card>
+            <CardHeader>
+              <CardTitle>Expenses</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {filteredExpenses.slice(0, 5).map(expense => (
+                <ExpenseItem key={expense.id} expense={expense} onEdit={(exp) => { setIsModalOpen(true); setCurrentExpense(exp); }} onDelete={deleteExpense} onMoveToWishlist={moveToWishlist} />
+              ))}
+              {expenses.length > 5 && <Button onClick={() => alert('Show all expenses logic here')}>See More</Button>}
+            </CardContent>
+            <CardFooter>
+              <Button onClick={() => setIsModalOpen(true)}>Add Expense</Button>
+              <Button variant="destructive" onClick={() => setExpenses([])}>Clear All</Button>
+            </CardFooter>
+          </Card>
+          <div className="mt-4 text-center">
+            <p>Total: ${totalExpenses.toFixed(2)}</p>
+            <p>Average: ${averageExpense}</p>
+          </div>
+        </div>
+        <div>
+          <Card>
+            <CardHeader>
+              <CardTitle>Must-Buy Wishlist <Badge>{wishlist.length}</Badge></CardTitle>
+            </CardHeader>
+            <CardContent>
+              {wishlist.map(item => <div key={item.id}>{item.name} - ${item.amount}</div>)}
+            </CardContent>
+          </Card>
+        </div>
+      </div>
     </div>
   );
-};
+}
 
-export default ExpenseManager;
+export default App;
