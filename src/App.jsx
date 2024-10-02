@@ -1,118 +1,115 @@
-// App.jsx
 import React, { useState, useEffect } from 'react';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 
-const categories = ['Food', 'Travel', 'Entertainment', 'Utilities', 'Other'];
-
-function generateRandomExpense() {
-  return {
-    title: `Expense ${Math.floor(Math.random() * 1000)}`,
-    amount: (Math.random() * 1000).toFixed(2),
-    category: categories[Math.floor(Math.random() * categories.length)],
-    date: new Date(Date.now() - Math.floor(Math.random() * 1000000000)).toISOString().split('T')[0]
-  };
-}
-
-export default function App() {
+function App() {
   const [expenses, setExpenses] = useState([]);
   const [wishlist, setWishlist] = useState([]);
-  const [showAll, setShowAll] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [newExpense, setNewExpense] = useState({ name: '', amount: '', category: 'General' });
+  const [isExpanded, setIsExpanded] = useState(false);
   
-  const addRandomExpense = () => {
-    setExpenses(prev => [...prev, generateRandomExpense()]);
+  const categories = ['General', 'Food', 'Transport', 'Entertainment'];
+  
+  const addExpense = () => {
+    if (newExpense.name && newExpense.amount) {
+      setExpenses([...expenses, { ...newExpense, id: Date.now() }]);
+      setNewExpense({ name: '', amount: '', category: 'General' });
+    }
   };
   
-  const clearAll = () => {
-    setExpenses([]);
-    setWishlist([]);
+  const removeExpense = (id) => {
+    setExpenses(expenses.filter(expense => expense.id !== id));
   };
-  
-  const totalExpense = expenses.reduce((sum, expense) => sum + parseFloat(expense.amount), 0);
-  const averageExpense = expenses.length ? (totalExpense / expenses.length).toFixed(2) : 0;
   
   const moveToWishlist = (expense) => {
-    setWishlist(prev => [...prev, expense]);
-    setExpenses(prev => prev.filter(e => e !== expense));
+    setWishlist([...wishlist, expense]);
+    removeExpense(expense.id);
   };
   
-  const removeFromList = (item, listSetter) => {
-    listSetter(prev => prev.filter(i => i !== item));
-  };
+  const filteredExpenses = expenses.filter(expense =>
+    expense.name.toLowerCase().includes(searchTerm.toLowerCase()) &&
+    (isExpanded || expenses.indexOf(expense) < 5)
+  );
+  
+  const total = expenses.reduce((sum, expense) => sum + parseFloat(expense.amount), 0);
+  const average = expenses.length ? (total / expenses.length).toFixed(2) : 0;
   
   return (
-    <div className="container mx-auto p-4 sm:p-6">
-      <Tabs defaultValue="expenses" className="w-full">
-        <TabsList>
-          <TabsTrigger value="expenses">Expenses</TabsTrigger>
-          <TabsTrigger value="wishlist">
-            Must-buy Items
-            {wishlist.length > 0 && <Badge className="ml-2">{wishlist.length}</Badge>}
-          </TabsTrigger>
-        </TabsList>
-        <TabsContent value="expenses">
-          <Card>
-            <CardHeader>
-              <CardTitle>Generate Expenses</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <Button onClick={addRandomExpense}>Add Random Expense</Button>
-              <Button className="ml-2" onClick={clearAll}>Clear All</Button>
-            </CardContent>
-          </Card>
-          <div className="mt-4 space-y-4">
-            {(showAll ? expenses : expenses.slice(0, 5)).map((expense, idx) => (
-              <ExpenseItem key={idx} expense={expense} onMove={moveToWishlist} onRemove={() => removeFromList(expense, setExpenses)} />
+    <div className="flex flex-col items-center p-4 space-y-4 sm:flex-row sm:space-x-4 sm:space-y-0">
+      <Card className="w-full sm:w-1/2">
+        <CardHeader>
+          <CardTitle>Expense Manager</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <Input
+            placeholder="Search expenses"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
+          <div className="mt-4 space-y-2">
+            {filteredExpenses.map((expense, index) => (
+              <div key={expense.id} className="flex justify-between items-center">
+                <span>{expense.name} - ${expense.amount}</span>
+                <div>
+                  <Button size="sm" onClick={() => moveToWishlist(expense)}>To Wishlist</Button>
+                  <Button size="sm" variant="destructive" onClick={() => removeExpense(expense.id)}>Delete</Button>
+                </div>
+              </div>
             ))}
-            {expenses.length > 5 && (
-              <Button onClick={() => setShowAll(!showAll)}>
-                {showAll ? 'Show Less' : 'See More'}
-              </Button>
-            )}
-            <div>
-              <p>Total Expense: ${totalExpense.toFixed(2)}</p>
-              <p>Average Expense: ${averageExpense}</p>
+            {!isExpanded && expenses.length > 5 &&
+              <Button onClick={() => setIsExpanded(true)}>See More</Button>
+            }
+          </div>
+          <div className="mt-4">
+            <Input
+              placeholder="Expense Name"
+              value={newExpense.name}
+              onChange={(e) => setNewExpense({...newExpense, name: e.target.value})}
+            />
+            <Input
+              type="number"
+              placeholder="Amount"
+              value={newExpense.amount}
+              onChange={(e) => setNewExpense({...newExpense, amount: e.target.value})}
+            />
+            <select
+              value={newExpense.category}
+              onChange={(e) => setNewExpense({...newExpense, category: e.target.value})}
+              className="mt-2 p-2 border rounded w-full"
+            >
+              {categories.map(cat => <option key={cat}>{cat}</option>)}
+            </select>
+            <Button className="mt-2 w-full" onClick={addExpense}>Add Expense</Button>
+          </div>
+          <div className="mt-4">
+            <p>Total: ${total.toFixed(2)}</p>
+            <p>Average: ${average}</p>
+          </div>
+        </CardContent>
+        <CardFooter>
+          <Button onClick={() => setExpenses([])} variant="destructive">Clear All</Button>
+        </CardFooter>
+      </Card>
+      
+      <Card className="w-full sm:w-1/2">
+        <CardHeader>
+          <CardTitle>Must-Buy Wishlist <Badge>{wishlist.length}</Badge></CardTitle>
+        </CardHeader>
+        <CardContent>
+          {wishlist.map(item => (
+            <div key={item.id} className="flex justify-between items-center mb-2">
+              <Checkbox />
+              <span>{item.name} - ${item.amount}</span>
             </div>
-          </div>
-        </TabsContent>
-        <TabsContent value="wishlist">
-          <div className="space-y-4">
-            {wishlist.map((item, idx) => (
-              <WishlistItem key={idx} item={item} onRemove={() => removeFromList(item, setWishlist)} />
-            ))}
-          </div>
-        </TabsContent>
-      </Tabs>
+          ))}
+        </CardContent>
+      </Card>
     </div>
   );
 }
 
-function ExpenseItem({ expense, onMove, onRemove }) {
-  return (
-    <Card>
-      <CardContent>
-        <h3>{expense.title}</h3>
-        <p>Amount: ${expense.amount}</p>
-        <p>Category: {expense.category}</p>
-        <p>Date: {expense.date}</p>
-        <Button size="sm" onClick={() => onMove(expense)}>Add to Wishlist</Button>
-        <Button size="sm" variant="destructive" className="ml-2" onClick={onRemove}>Remove</Button>
-      </CardContent>
-    </Card>
-  );
-}
-
-function WishlistItem({ item, onRemove }) {
-  return (
-    <Card>
-      <CardContent>
-        <h3>{item.title}</h3>
-        <p>Amount: ${item.amount}</p>
-        <Button size="sm" variant="destructive" onClick={onRemove}>Remove</Button>
-      </CardContent>
-    </Card>
-  );
-}
+export default App;
