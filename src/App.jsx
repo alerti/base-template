@@ -240,7 +240,6 @@ const ExpenseManager = () => {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              {/* Search and Filter */}
               <div className="flex space-x-2 mb-4">
                 <Select
                   value={filterCategory}
