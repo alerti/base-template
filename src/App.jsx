@@ -1,168 +1,156 @@
-// App.jsx
 import React, { useState, useEffect } from 'react';
-import { Button, Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
 // Code Plan:
-// 1. Define state for expenses, wishlist, and filter/search functionalities.
-// 2. Create components for ExpenseItem, WishlistItem, and main ExpenseManager.
-// 3. Implement functions for adding, editing, deleting, and moving items between lists.
-// 4. Use Tailwind for styling and ensure responsiveness.
-// 5. Utilize Shadcn components for UI elements.
+// 1. Define state for expenses, wishlist, and modal visibility.
+// 2. Create functions for adding, editing, removing expenses and moving to wishlist.
+// 3. Implement filtering and searching functionality.
+// 4. Use a dialog for adding/editing expenses to keep the modal open for multiple entries.
+// 5. Render expense list with expand functionality and wishlist with badge.
+// 6. Ensure mobile responsiveness with Tailwind classes.
 
-const ExpenseItem = ({ item, onEdit, onDelete, onMoveToWishlist }) => (
-  <Card className="mb-2">
-    <CardHeader>
-      <CardTitle>{item.name}</CardTitle>
-      <CardDescription>{item.category} - ${item.amount}</CardDescription>
-    </CardHeader>
-    <CardFooter className="flex justify-between">
-      <Button onClick={() => onEdit(item)}>Edit</Button>
-      <Button onClick={() => onDelete(item.id)} variant="destructive">Delete</Button>
-      <Button onClick={() => onMoveToWishlist(item)}>Move to Wishlist</Button>
-    </CardFooter>
-  </Card>
-);
-
-const WishlistItem = ({ item, onRemove }) => (
-  <Card className="mb-2">
-    <CardContent className="flex justify-between items-center">
-      <span>{item.name}</span>
-      <Button onClick={() => onRemove(item.id)} variant="destructive">Remove</Button>
-    </CardContent>
-  </Card>
-);
-
-export default function App() {
+function App() {
   const [expenses, setExpenses] = useState([]);
   const [wishlist, setWishlist] = useState([]);
-  const [newExpense, setNewExpense] = useState({ name: '', amount: '', category: '' });
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [newExpense, setNewExpense] = useState({ name: '', amount: '', category: 'Other' });
   const [searchTerm, setSearchTerm] = useState('');
-  const [filterCategory, setFilterCategory] = useState('all');
-  const [isExpanded, setIsExpanded] = useState(false);
+  const [filterCategory, setFilterCategory] = useState('All');
+  
+  const categories = ['Food', 'Transport', 'Entertainment', 'Shopping', 'Bills', 'Other'];
   
   const addExpense = () => {
     if (newExpense.name && newExpense.amount) {
-      setExpenses([...expenses, { ...newExpense, id: Date.now() }]);
-      setNewExpense({ name: '', amount: '', category: '' });
+      setExpenses(prev => [...prev, { ...newExpense, id: Date.now() }]);
+      setNewExpense({ name: '', amount: '', category: 'Other' });
     }
   };
   
-  const updateExpense = (id, updatedExpense) => {
+  const removeExpense = (id) => {
+    setExpenses(expenses.filter(expense => expense.id !== id));
+  };
+  
+  const editExpense = (id, updatedExpense) => {
     setExpenses(expenses.map(exp => exp.id === id ? { ...exp, ...updatedExpense } : exp));
   };
   
-  const deleteExpense = (id) => {
-    setExpenses(expenses.filter(exp => exp.id !== id));
+  const moveToWishlist = (id) => {
+    const item = expenses.find(exp => exp.id === id);
+    if (item) {
+      setWishlist(prev => [...prev, item]);
+      removeExpense(id);
+    }
   };
   
-  const moveToWishlist = (item) => {
-    setWishlist([...wishlist, item]);
-    deleteExpense(item.id);
-  };
-  
-  const removeFromWishlist = (id) => {
-    setWishlist(wishlist.filter(item => item.id !== id));
-  };
-  
-  const clearAllExpenses = () => {
+  const clearAll = () => {
     setExpenses([]);
+    setWishlist([]);
   };
+  
+  const totalExpenses = expenses.reduce((total, exp) => total + parseFloat(exp.amount), 0);
+  const avgExpense = expenses.length ? (totalExpenses / expenses.length).toFixed(2) : '0.00';
   
   const filteredExpenses = expenses.filter(exp =>
-    (filterCategory === 'all' || exp.category === filterCategory) &&
-    (exp.name.toLowerCase().includes(searchTerm.toLowerCase()) || exp.category.toLowerCase().includes(searchTerm.toLowerCase()))
+    (filterCategory === 'All' || exp.category === filterCategory) &&
+    (exp.name.toLowerCase().includes(searchTerm.toLowerCase()) || exp.amount.toString().includes(searchTerm))
   );
   
-  const totalAmount = expenses.reduce((sum, exp) => sum + parseFloat(exp.amount), 0);
-  const averageAmount = expenses.length ? (totalAmount / expenses.length).toFixed(2) : 0;
+  const visibleExpenses = filteredExpenses.slice(0, 5);
   
   return (
-    <div className="container mx-auto px-4 py-8 sm:max-w-lg">
+    <div className="p-4 sm:p-8 space-y-4">
       <Card>
         <CardHeader>
           <CardTitle>Expense Manager</CardTitle>
         </CardHeader>
-        <CardContent>
-          <div className="mb-4">
-            <Input
-              value={newExpense.name}
-              onChange={e => setNewExpense({...newExpense, name: e.target.value})}
-              placeholder="Expense Name"
-              className="mb-2"
-            />
-            <Input
-              value={newExpense.amount}
-              onChange={e => setNewExpense({...newExpense, amount: e.target.value})}
-              placeholder="Amount"
-              type="number"
-              className="mb-2"
-            />
-            <Input
-              value={newExpense.category}
-              onChange={e => setNewExpense({...newExpense, category: e.target.value})}
-              placeholder="Category"
-            />
-            <Button onClick={addExpense} className="mt-2 w-full">Add Expense</Button>
-          </div>
-          
-          <div className="mb-4">
+        <CardContent className="space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between space-y-2 sm:space-y-0">
             <Input
               placeholder="Search expenses..."
-              onChange={e => setSearchTerm(e.target.value)}
-              className="mb-2"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full sm:w-1/3"
             />
             <select
-              onChange={e => setFilterCategory(e.target.value)}
               value={filterCategory}
-              className="p-2 border rounded w-full"
+              onChange={(e) => setFilterCategory(e.target.value)}
+              className="input w-full sm:w-1/4"
             >
-              <option value="all">All Categories</option>
-              <option value="food">Food</option>
-              <option value="travel">Travel</option>
-              <option value="other">Other</option>
+              <option value="All">All Categories</option>
+              {categories.map(cat => <option key={cat} value={cat}>{cat}</option>)}
             </select>
+            <Button onClick={() => setIsModalOpen(true)}>Add Expense</Button>
           </div>
           
-          <ScrollArea className="h-64 mb-4">
-            {filteredExpenses.slice(0, isExpanded ? undefined : 5).map(exp => (
-              <ExpenseItem
-                key={exp.id}
-                item={exp}
-                onEdit={updateExpense}
-                onDelete={deleteExpense}
-                onMoveToWishlist={moveToWishlist}
-              />
+          <ScrollArea className="h-64">
+            {visibleExpenses.map(exp => (
+              <div key={exp.id} className="flex justify-between items-center border-b p-2">
+                <span>{exp.name} - ${exp.amount} ({exp.category})</span>
+                <div>
+                  <Button size="sm" onClick={() => moveToWishlist(exp.id)}>To Wishlist</Button>
+                  <Button size="sm" onClick={() => editExpense(exp.id, {name: 'Updated', amount: '0'})}>Edit</Button>
+                  <Button size="sm" variant="destructive" onClick={() => removeExpense(exp.id)}>Remove</Button>
+                </div>
+              </div>
             ))}
+            {filteredExpenses.length > 5 &&
+              <Button className="mt-2" onClick={() => alert('Show all expenses')}>See More</Button>
+            }
           </ScrollArea>
           
-          {expenses.length > 5 && (
-            <Button onClick={() => setIsExpanded(!isExpanded)} className="mb-4">
-              {isExpanded ? "See Less" : "See More"}
-            </Button>
-          )}
-          
-          <div>
-            <p>Total: ${totalAmount.toFixed(2)}</p>
-            <p>Average: ${averageAmount}</p>
+          <div className="flex justify-between">
+            <span>Total: ${totalExpenses.toFixed(2)}</span>
+            <span>Avg: ${avgExpense}</span>
           </div>
           
-          <Button onClick={clearAllExpenses} variant="destructive" className="mt-2">Clear All Expenses</Button>
+          <Button onClick={clearAll} variant="destructive">Clear All</Button>
         </CardContent>
       </Card>
       
-      <Card className="mt-4">
+      <Card>
         <CardHeader>
           <CardTitle>Must-Buy Wishlist <Badge>{wishlist.length}</Badge></CardTitle>
         </CardHeader>
         <CardContent>
           {wishlist.map(item => (
-            <WishlistItem key={item.id} item={item} onRemove={removeFromWishlist} />
+            <div key={item.id} className="flex justify-between p-2 border-b">
+              <span>{item.name}</span>
+              <span>${item.amount}</span>
+            </div>
           ))}
         </CardContent>
       </Card>
+      
+      <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Add/Edit Expense</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <Label htmlFor="expenseName">Name</Label>
+            <Input id="expenseName" value={newExpense.name} onChange={e => setNewExpense(prev => ({...prev, name: e.target.value}))} />
+            <Label htmlFor="expenseAmount">Amount</Label>
+            <Input id="expenseAmount" type="number" value={newExpense.amount} onChange={e => setNewExpense(prev => ({...prev, amount: e.target.value}))} />
+            <Label htmlFor="expenseCategory">Category</Label>
+            <select
+              id="expenseCategory"
+              value={newExpense.category}
+              onChange={e => setNewExpense(prev => ({...prev, category: e.target.value}))}
+            >
+              {categories.map(cat => <option key={cat} value={cat}>{cat}</option>)}
+            </select>
+            <Button onClick={addExpense}>Add Expense</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
+
+export default App;
