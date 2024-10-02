@@ -1,140 +1,160 @@
-import React, { useState, useEffect } from 'react';
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
-import { Checkbox } from "@/components/ui/checkbox";
+// App.jsx
+import React, { useState, useMemo } from 'react';
+import {
+  Card, CardContent, CardHeader, CardTitle,
+  CardFooter, Button, Input, Badge,
+  Dialog, DialogContent, DialogTrigger
+} from "@/components/ui";
+import { Plus, Trash, Edit, X } from 'lucide-react';
 
-function generateRandomExpense() {
-  const categories = ['Food', 'Transport', 'Entertainment', 'Utilities', 'Misc'];
-  return {
-    id: Date.now() + Math.random(),
-    title: `Expense ${Math.floor(Math.random() * 1000)}`,
-    amount: Math.floor(Math.random() * 1000) + 1,
-    category: categories[Math.floor(Math.random() * categories.length)],
-    date: new Date(Date.now() - Math.random() * (1e+12)).toISOString().split('T')[0],
+const categories = ['Food', 'Travel', 'Entertainment', 'Utilities', 'Other'];
+
+function ExpenseManager() {
+  const [expenses, setExpenses] = useState([]);
+  const [wishlist, setWishlist] = useState([]);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filterCategory, setFilterCategory] = useState('');
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [editItem, setEditItem] = useState(null);
+  
+  const addExpense = (expense) => {
+    setExpenses([...expenses, { ...expense, id: Date.now() }]);
   };
-}
-
-function ExpenseList({ expenses, onRemove, onMoveToWishlist }) {
-  const [visibleCount, setVisibleCount] = useState(5);
-  const showMore = expenses.length > 5;
+  
+  const removeExpense = (id) => {
+    setExpenses(expenses.filter(exp => exp.id !== id));
+  };
+  
+  const moveToWishlist = (expense) => {
+    setWishlist([...wishlist, expense]);
+    removeExpense(expense.id);
+  };
+  
+  const filteredExpenses = useMemo(() => {
+    return expenses.filter(exp =>
+      exp.description.toLowerCase().includes(searchTerm.toLowerCase()) &&
+      (filterCategory === '' || exp.category === filterCategory)
+    );
+  }, [expenses, searchTerm, filterCategory]);
+  
+  const totalExpenses = useMemo(() => filteredExpenses.reduce((acc, exp) => acc + exp.amount, 0), [filteredExpenses]);
+  const averageExpense = useMemo(() => totalExpenses / filteredExpenses.length || 0, [totalExpenses, filteredExpenses.length]);
+  
+  const openEdit = (expense) => {
+    setEditItem(expense);
+    setIsDialogOpen(true);
+  };
+  
+  const saveEdit = (updatedExpense) => {
+    setExpenses(expenses.map(exp => exp.id === updatedExpense.id ? updatedExpense : exp));
+    setIsDialogOpen(false);
+  };
   
   return (
-    <div className="space-y-4">
-      {expenses.slice(0, visibleCount).map(expense => (
-        <Card key={expense.id}>
-          <CardHeader>
-            <CardTitle>{expense.title}</CardTitle>
-            <CardDescription>{expense.date}</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <p>Amount: ${expense.amount}</p>
-            <p>Category: {expense.category}</p>
-          </CardContent>
-          <CardFooter className="flex justify-between">
-            <Button onClick={() => onRemove(expense.id)}>Remove</Button>
-            <Button onClick={() => onMoveToWishlist(expense)} variant="outline">Add to Wishlist</Button>
-          </CardFooter>
-        </Card>
-      ))}
-      {showMore &&
-        <Button onClick={() => setVisibleCount(prev => prev === 5 ? expenses.length : 5)}>
-          {visibleCount === 5 ? 'See More' : 'See Less'}
-        </Button>
-      }
+    <div className="container mx-auto p-4 sm:p-8">
+      <Card className="mb-4">
+        <CardHeader>
+          <CardTitle>Expense Manager</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <ExpenseForm onSubmit={addExpense} />
+          <div className="flex flex-col sm:flex-row gap-2 mt-4">
+            <Input placeholder="Search expenses..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
+            <select
+              value={filterCategory}
+              onChange={(e) => setFilterCategory(e.target.value)}
+              className="p-2 border rounded">
+              <option value="">All Categories</option>
+              {categories.map(cat => <option key={cat} value={cat}>{cat}</option>)}
+            </select>
+          </div>
+        </CardContent>
+      </Card>
+      
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <ExpenseList
+          expenses={filteredExpenses.slice(0, 5)}
+          onDelete={removeExpense}
+          onEdit={openEdit}
+          onMoveToWishlist={moveToWishlist}
+          total={totalExpenses}
+          average={averageExpense}
+        />
+        {filteredExpenses.length > 5 &&
+          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+            <DialogContent>
+              <ExpenseList expenses={filteredExpenses} onDelete={removeExpense} onEdit={openEdit} onMoveToWishlist={moveToWishlist} />
+            </DialogContent>
+          </Dialog>
+        }
+        <WishList items={wishlist} />
+      </div>
+      
+      <Button className="mt-4 w-full" onClick={() => setExpenses([])}>Clear All</Button>
     </div>
   );
 }
 
-function Wishlist({ items, onRemove }) {
+function ExpenseForm({ onSubmit }) {
+  const [description, setDescription] = useState('');
+  const [amount, setAmount] = useState('');
+  const [category, setCategory] = useState(categories[0]);
+  
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    if (description && amount) {
+      onSubmit({ description, amount: parseFloat(amount), category });
+      setDescription(''); setAmount(''); setCategory(categories[0]);
+    }
+  };
+  
   return (
-    <div className="space-y-4">
-      {items.map(item => (
-        <Card key={item.id}>
-          <CardHeader>
-            <CardTitle>{item.title}</CardTitle>
-          </CardHeader>
-          <CardFooter className="flex justify-between">
-            <p>${item.amount}</p>
-            <Button onClick={() => onRemove(item.id)}>Remove</Button>
-          </CardFooter>
-        </Card>
-      ))}
-    </div>
+    <form onSubmit={handleSubmit}>
+      <Input type="text" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Description" required />
+      <Input type="number" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="Amount" required />
+      <select value={category} onChange={(e) => setCategory(e.target.value)} required>
+        {categories.map(cat => <option key={cat} value={cat}>{cat}</option>)}
+      </select>
+      <Button type="submit" className="mt-2">Add Expense</Button>
+    </form>
+  );
+}
+
+function ExpenseList({ expenses, onDelete, onEdit, onMoveToWishlist, total, average }) {
+  return (
+    <Card>
+      <CardContent>
+        {expenses.map(exp => (
+          <div key={exp.id} className="flex justify-between items-center mb-2">
+            <span>{exp.description} - ${exp.amount} ({exp.category})</span>
+            <div>
+              <Button variant="ghost" size="icon" onClick={() => onEdit(exp)}><Edit /></Button>
+              <Button variant="ghost" size="icon" onClick={() => onDelete(exp.id)}><Trash /></Button>
+              <Button variant="ghost" size="icon" onClick={() => onMoveToWishlist(exp)}><Plus /></Button>
+            </div>
+          </div>
+        ))}
+        {expenses.length > 5 && <DialogTrigger asChild><Button>See More</Button></DialogTrigger>}
+        <p>Total: ${total.toFixed(2)}</p>
+        <p>Average: ${average.toFixed(2)}</p>
+      </CardContent>
+    </Card>
+  );
+}
+
+function WishList({ items }) {
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Must-Buy List <Badge>{items.length}</Badge></CardTitle>
+      </CardHeader>
+      <CardContent>
+        {items.map(item => <p key={item.id}>{item.description}</p>)}
+      </CardContent>
+    </Card>
   );
 }
 
 export default function App() {
-  const [expenses, setExpenses] = useState([]);
-  const [wishlist, setWishlist] = useState([]);
-  const [tab, setTab] = useState('expenses');
-  
-  useEffect(() => {
-    if (expenses.length === 0) {
-      const initialExpenses = Array.from({length: 10}, generateRandomExpense);
-      setExpenses(initialExpenses);
-    }
-  }, []);
-  
-  const addRandomExpense = () => {
-    setExpenses(prev => [...prev, generateRandomExpense()]);
-  };
-  
-  const clearAll = () => {
-    setExpenses([]);
-    setWishlist([]);
-  };
-  
-  const moveToWishlist = (expense) => {
-    setWishlist(prev => [...prev, expense]);
-    setExpenses(prev => prev.filter(e => e.id !== expense.id));
-  };
-  
-  const removeFromList = (id, fromWishlist = false) => {
-    if (fromWishlist) {
-      setWishlist(prev => prev.filter(item => item.id !== id));
-    } else {
-      setExpenses(prev => prev.filter(expense => expense.id !== id));
-    }
-  };
-  
-  const totalExpense = expenses.reduce((sum, e) => sum + e.amount, 0);
-  const averageExpense = expenses.length ? (totalExpense / expenses.length).toFixed(2) : 0;
-  
-  return (
-    <div className="container mx-auto p-4 sm:p-8">
-      <Tabs defaultValue="expenses" className="w-full">
-        <TabsList>
-          <TabsTrigger value="expenses">Expenses</TabsTrigger>
-          <TabsTrigger value="wishlist">
-            Must-buy Items
-            {wishlist.length > 0 && <Badge className="ml-2">{wishlist.length}</Badge>}
-          </TabsTrigger>
-        </TabsList>
-        <TabsContent value="expenses">
-          <Card>
-            <CardHeader>
-              <CardTitle>Expense Tracker</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="mb-4">
-                <Button onClick={addRandomExpense}>Add Random Expense</Button>
-                <Button onClick={clearAll} variant="destructive" className="ml-2">Clear All</Button>
-              </div>
-              <ExpenseList expenses={expenses} onRemove={removeFromList} onMoveToWishlist={moveToWishlist} />
-              <div className="mt-4">
-                <p>Total Expenses: ${totalExpense}</p>
-                <p>Average Expense: ${averageExpense}</p>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-        <TabsContent value="wishlist">
-          <Wishlist items={wishlist} onRemove={item => removeFromList(item.id, true)} />
-        </TabsContent>
-      </Tabs>
-    </div>
-  );
+  return <ExpenseManager />;
 }
