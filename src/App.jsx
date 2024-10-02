@@ -242,12 +242,6 @@ const ExpenseManager = () => {
             <CardContent>
               {/* Search and Filter */}
               <div className="flex space-x-2 mb-4">
-                <Input
-                  placeholder="Search expenses"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="flex-1"
-                />
                 <Select
                   value={filterCategory}
                   onValueChange={(value) => setFilterCategory(value)}
