@@ -1,36 +1,37 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from "react";
 import {
   Card,
+  CardContent,
   CardHeader,
   CardTitle,
   CardDescription,
-  CardContent,
-} from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import {
   Tabs,
   TabsList,
   TabsTrigger,
   TabsContent,
-} from '@/components/ui/tabs';
-import { Badge } from '@/components/ui/badge';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+} from "@/components/ui/tabs";
+import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectTrigger,
   SelectContent,
   SelectItem,
   SelectValue,
-} from '@/components/ui/select';
+} from "@/components/ui/select";
 import {
   Dialog,
   DialogTrigger,
   DialogContent,
   DialogHeader,
   DialogTitle,
-} from '@/components/ui/dialog';
-import { Textarea } from '@/components/ui/textarea';
+  DialogClose,
+} from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
 
 const ExpenseManager = () => {
   const [expenses, setExpenses] = useState([]);
@@ -40,6 +41,7 @@ const ExpenseManager = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [filterCategory, setFilterCategory] = useState('All');
   const [editingIndex, setEditingIndex] = useState(null);
+  const [isDialogOpen, setIsDialogOpen] = useState(false); // Control dialog visibility
   
   const categories = [
     'Food',
@@ -87,13 +89,13 @@ const ExpenseManager = () => {
       updatedExpenses[editingIndex] = newExpense;
       setExpenses(updatedExpenses);
       showNotification('Expense updated successfully!', 'success');
+      setIsDialogOpen(false); // Close dialog after editing
     } else {
       // Adding new expense
       setExpenses([...expenses, newExpense]);
       showNotification('Expense added successfully!', 'success');
+      resetExpenseForm(); // Clear form fields but keep dialog open
     }
-    
-    resetExpenseForm();
   };
   
   const editExpense = (index) => {
@@ -106,6 +108,7 @@ const ExpenseManager = () => {
       notes: expenseToEdit.notes || '',
     });
     setEditingIndex(index);
+    setIsDialogOpen(true); // Open dialog directly for editing
   };
   
   const clearExpenses = () => {
@@ -187,7 +190,7 @@ const ExpenseManager = () => {
   };
   
   return (
-    <div className="flex flex-col justify-center items-center min-h-screen p-4 bg-gray-50">
+    <div className={`flex flex-col justify-center items-center min-h-screen p-4 bg-gray-50 ${isDialogOpen ? 'overflow-hidden' : ''}`}>
       {/* Notification */}
       {notification && (
         <div
@@ -217,9 +220,11 @@ const ExpenseManager = () => {
       
       {/* Tabs for navigation */}
       <Tabs defaultValue="expenses" className="w-full max-w-md">
-        <TabsList className="grid grid-cols-3 mb-4">
-          <TabsTrigger value="expenses">Expenses</TabsTrigger>
-          <TabsTrigger value="wishlist">
+        <TabsList className="flex space-x-2 mb-4 overflow-x-auto pl-4">
+          <TabsTrigger value="expenses" className="whitespace-nowrap pl-2 pr-2 ml-2">
+            Expenses
+          </TabsTrigger>
+          <TabsTrigger value="wishlist" className="whitespace-nowrap">
             Must-buy Items
             {wishlist.length > 0 && (
               <Badge variant="dot" className="ml-2">
@@ -227,7 +232,9 @@ const ExpenseManager = () => {
               </Badge>
             )}
           </TabsTrigger>
-          <TabsTrigger value="summary">Summary</TabsTrigger>
+          <TabsTrigger value="summary" className="whitespace-nowrap">
+            Summary
+          </TabsTrigger>
         </TabsList>
         
         {/* Expenses Tab */}
@@ -269,9 +276,9 @@ const ExpenseManager = () => {
                       (expense, index) => (
                         <div
                           key={index}
-                          className="flex justify-between items-center p-2 border rounded bg-white"
+                          className="flex flex-col sm:flex-row justify-between items-start sm:items-center p-2 border rounded bg-white"
                         >
-                          <div>
+                          <div className="flex-1">
                             <h3 className="font-bold text-gray-800">
                               {expense.title}
                             </h3>
@@ -285,33 +292,32 @@ const ExpenseManager = () => {
                               </p>
                             )}
                           </div>
-                          <div className="flex flex-col items-end space-y-2">
+                          <div className="flex flex-col sm:flex-row sm:space-x-2 mt-2 sm:mt-0">
                             <p className="font-semibold text-indigo-600">
                               ${expense.amount.toFixed(2)}
                             </p>
-                            <div className="flex space-x-2">
-                              <Button
-                                size="sm"
-                                onClick={() => addToWishlist(expense)}
-                                className="bg-green-500 hover:bg-green-600 text-white"
-                              >
-                                Add to Wishlist
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => editExpense(index)}
-                              >
-                                Edit
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="destructive"
-                                onClick={() => removeExpense(index)}
-                              >
-                                Remove
-                              </Button>
-                            </div>
+                            <Button
+                              size="sm"
+                              onClick={() => addToWishlist(expense)}
+                              className="bg-green-500 hover:bg-green-600 text-whiten mt-2 mb-2"
+                            >
+                              Add to Wishlist
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => editExpense(index)}
+                            >
+                              Edit
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="destructive"
+                              className="mt-2 mb-2 bg-red-600"
+                              onClick={() => removeExpense(index)}
+                            >
+                              Remove
+                            </Button>
                           </div>
                         </div>
                       )
@@ -325,7 +331,7 @@ const ExpenseManager = () => {
                         variant="outline"
                         onClick={() => setShowAllExpenses(!showAllExpenses)}
                       >
-                        {showAllExpenses ? 'Short list' : 'Long List'}
+                        {showAllExpenses ? 'Short List' : 'Long List'}
                       </Button>
                     </div>
                   )}
@@ -349,9 +355,9 @@ const ExpenseManager = () => {
                   {wishlist.map((item, index) => (
                     <li
                       key={index}
-                      className="flex justify-between items-center p-2 border rounded bg-white"
+                      className="flex flex-col sm:flex-row justify-between items-start sm:items-center p-2 border rounded bg-white"
                     >
-                      <div>
+                      <div className="flex-1">
                         <h3 className="font-bold text-gray-800">{item.title}</h3>
                         <p className="text-sm text-gray-500">{item.date}</p>
                         <p className="text-sm text-gray-500">{item.category}</p>
@@ -359,7 +365,7 @@ const ExpenseManager = () => {
                           <p className="text-sm text-gray-600">{item.notes}</p>
                         )}
                       </div>
-                      <div className="flex flex-col items-end space-y-2">
+                      <div className="flex flex-col sm:flex-row sm:space-x-2 mt-2 sm:mt-0">
                         <p className="font-semibold text-indigo-600">
                           ${item.amount.toFixed(2)}
                         </p>
@@ -429,10 +435,10 @@ const ExpenseManager = () => {
       {/* Add Expense and Clear All Buttons */}
       <div className="w-full max-w-md mt-4 flex space-x-2">
         {/* Add Expense Button */}
-        <Dialog>
+        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogTrigger asChild>
             <Button className="w-full">
-              {editingIndex !== null ? 'Edit Expense' : 'Add New Expense'}
+              Add New Expense
             </Button>
           </DialogTrigger>
           <DialogContent>
@@ -440,6 +446,7 @@ const ExpenseManager = () => {
               <DialogTitle>
                 {editingIndex !== null ? 'Edit Expense' : 'Add Expense'}
               </DialogTitle>
+              <DialogClose />
             </DialogHeader>
             <div className="space-y-4">
               <div>
