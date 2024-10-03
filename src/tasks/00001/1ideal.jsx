@@ -4,12 +4,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 
 const FruitSelector = () => {
   const [selectedFruit, setSelectedFruit] = useState('');
-
+  
   return (
     <div className="flex justify-center items-center h-screen">
       <Card className="w-[350px]">
         <CardHeader>
-          <CardTitle>Fruit Selector 1ideal</CardTitle>
+          <CardTitle>Fruit Selector 1a</CardTitle>
           <CardDescription>Choose your favorite fruit from the options below.</CardDescription>
         </CardHeader>
         <CardContent>
